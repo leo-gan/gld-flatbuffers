@@ -1,0 +1,35 @@
+namespace features;
+
+enum Color : byte { Red = 1, Green = 2, Blue = 3 }
+
+struct Point {
+  x:float;
+  y:float;
+}
+
+struct Mixed {
+  a:ubyte;
+  b:short;
+  c:int;
+}
+
+table Text { value:string; }
+table Count { n:int = 0; }
+
+union Item { Text, Count }
+
+table Holder {
+  name:string;
+  color:Color = Green;
+  point:Point;
+  mixed:Mixed;
+  item:Item;
+  maybe:int32 = null;
+  flags:uint = 0;
+  scores:[float];
+  tags:[string];
+}
+
+root_type Holder;
+file_identifier "HOLD";
+file_extension "bin";

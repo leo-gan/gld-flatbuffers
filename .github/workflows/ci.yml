@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Mojo tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.10.1
+        with:
+          cache: true
+      - name: Run tests
+        run: pixi run test
+        env:
+          PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
+      - name: Precompile package
+        run: pixi run precompile && pixi run mojo run -I /tmp/mojo-flatbuffers-pkg conda.recipe/test_import.mojo
+        env:
+          PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
+
+  docs:
+    name: Docs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install MkDocs
+        run: pip install -r requirements-docs.txt
+      - name: Build site
+        run: mkdocs build --strict

@@ -1,0 +1,51 @@
+name: Publish
+
+# Starts after a GitHub Release exists. That is after the version bump is on
+# main, not on every push.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: prefix.dev
+    runs-on: ubuntu-latest
+    environment:
+      name: prefix.dev
+      url: https://prefix.dev/leo-gan/leo-gan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup rattler-build
+        uses: prefix-dev/rattler-build-action@v0.2.39
+        with:
+          setup-only: true
+
+      - name: Build conda package
+        env:
+          PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
+        run: |
+          rattler-build build \
+            --recipe conda.recipe/recipe.yaml \
+            -c conda-forge \
+            -c https://conda.modular.com/max
+
+      - name: Upload to prefix.dev
+        run: |
+          shopt -s nullglob
+          pkgs=(output/**/*.conda)
+          if [ ${#pkgs[@]} -eq 0 ]; then
+            echo "no .conda artifacts under output/" >&2
+            exit 1
+          fi
+          rattler-build upload prefix --skip-existing \
+            -c leo-gan/leo-gan "${pkgs[@]}"

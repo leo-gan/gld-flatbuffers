@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/prefix-dev/recipe-format/main/schema.json
+context:
+  version: "0.1.0"
+
+package:
+  name: mojo-flatbuffers
+  version: ${{ version }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  script:
+    - mkdir -p ${{ PREFIX }}/lib/mojo ${{ PREFIX }}/bin
+    - mojo precompile -I src src/wire -o ${{ PREFIX }}/lib/mojo/wire.mojoc
+    - mojo precompile -I src src/flex -o ${{ PREFIX }}/lib/mojo/flex.mojoc
+    - mojo precompile -I src src/schema -o ${{ PREFIX }}/lib/mojo/schema.mojoc
+    - mojo precompile -I src src/flatbuffers -o ${{ PREFIX }}/lib/mojo/flatbuffers.mojoc
+    - mojo build -I src src/codegen/cli.mojo -o ${{ PREFIX }}/bin/gld-flatc-mojo
+
+requirements:
+  build:
+    - mojo-compiler ==1.0.0
+  host:
+    - mojo-compiler ==1.0.0
+  run:
+    - ${{ pin_compatible('mojo-compiler') }}
+
+tests:
+  - script:
+      - if: unix
+        then:
+          - mojo run test_import.mojo
+          - gld-flatc-mojo --help
+    files:
+      recipe:
+        - test_import.mojo
+
+about:
+  homepage: https://leo-gan.github.io/gld-flatbuffers/
+  repository: https://github.com/leo-gan/gld-flatbuffers
+  documentation: https://leo-gan.github.io/gld-flatbuffers/
+  license: MIT
+  license_file: LICENSE
+  summary: From-scratch FlatBuffers library for Mojo
+  description: |
+    Runtime and code generator written in Mojo. Does not wrap the C++ FlatBuffers
+    library, flatcc, or any other C, C++, or Rust FlatBuffers library. The package
+    installs flatbuffers.mojoc (plus wire, flex, and schema) and the gld-flatc-mojo CLI.
+
+extra:
+  recipe-maintainers:
+    - leo-gan

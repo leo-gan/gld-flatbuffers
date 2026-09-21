@@ -1,0 +1,4 @@
+include "child.fbs";
+namespace demo.parent;
+table Parent { kid:demo.child.Kid; }
+root_type Parent;

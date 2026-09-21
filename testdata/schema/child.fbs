@@ -1,0 +1,2 @@
+namespace demo.child;
+table Kid { n:int = 0; }
