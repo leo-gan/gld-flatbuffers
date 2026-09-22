@@ -1,7 +1,10 @@
-from std.collections import List, Span
+from std.collections import Span
 
 from wire.scalar import (
     int_from_i32,
+    load_u16,
+    load_u32,
+    load_u64,
     read_bool,
     read_f32,
     read_f64,
@@ -37,10 +40,7 @@ def file_identifier[origin: ImmOrigin](data: Span[Byte, origin]) raises -> Strin
     """Four bytes after the root uoffset. Empty when the buffer is shorter."""
     if len(data) < 8:
         raise Error("truncated")
-    var tmp = List[Byte]()
-    for i in range(4):
-        tmp.append(data[4 + i])
-    return String(from_utf8=Span(tmp))
+    return String(from_utf8=data[4:8])
 
 
 def field_voffset[origin: ImmOrigin](data: Span[Byte, origin], table: Int, id: Int) raises -> Int:
@@ -59,6 +59,82 @@ def field_voffset[origin: ImmOrigin](data: Span[Byte, origin], table: Int, id: I
     if entry >= vbytes:
         return 0
     return Int(read_u16(data, vtable + entry))
+
+
+struct TableRef[origin: ImmOrigin]:
+    """One table with its vtable loaded once.
+
+    Generated views call `field_voffset` per field, which re-reads the vtable
+    header every time. This cursor pays that cost once, then each field is a
+    16-bit load.
+    """
+
+    var data: Span[Byte, Self.origin]
+    var table: Int
+    var vt: Int
+    var vbytes: Int
+
+    def __init__(out self, data: Span[Byte, Self.origin], table: Int) raises:
+        self.data = data
+        self.table = table
+        if table < 0 or table + 4 > len(data):
+            raise Error("truncated")
+        var soff = int_from_i32(read_i32(data, table))
+        var vtable = table - soff
+        if vtable < 0 or vtable + 4 > len(data):
+            raise Error("bad vtable")
+        var vbytes = Int(load_u16(data, vtable))
+        if vbytes < 4 or vtable + vbytes > len(data):
+            raise Error("bad vtable")
+        self.vt = vtable
+        self.vbytes = vbytes
+
+    def off(self, id: Int) -> Int:
+        var entry = 4 + 2 * id
+        if entry >= self.vbytes:
+            return 0
+        return Int(load_u16(self.data, self.vt + entry))
+
+    def i32(self, id: Int, default: Int32) -> Int32:
+        var o = self.off(id)
+        if o == 0:
+            return default
+        return Int32(load_u32(self.data, self.table + o))
+
+    def i64(self, id: Int, default: Int64) -> Int64:
+        var o = self.off(id)
+        if o == 0:
+            return default
+        return Int64(load_u64(self.data, self.table + o))
+
+    def f64(self, id: Int, default: Float64) -> Float64:
+        var o = self.off(id)
+        if o == 0:
+            return default
+        return Float64(from_bits=load_u64(self.data, self.table + o))
+
+    def boolean(self, id: Int, default: Bool) -> Bool:
+        var o = self.off(id)
+        if o == 0:
+            return default
+        return UInt8(self.data[self.table + o]) != 0
+
+    def uoffset(self, id: Int) raises -> Int:
+        var o = self.off(id)
+        if o == 0:
+            return -1
+        var pos = self.table + o
+        var rel = Int(load_u32(self.data, pos))
+        var dest = pos + rel
+        if rel < 4 or dest < 0 or dest > len(self.data):
+            raise Error("bad offset")
+        return dest
+
+    def string(self, id: Int) raises -> String:
+        var pos = self.uoffset(id)
+        if pos < 0:
+            return String()
+        return read_string_at(self.data, pos)
 
 
 def indirect[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> Int:
@@ -83,10 +159,10 @@ def read_string_at[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises
         raise Error("bad string")
     if data[pos + 4 + n] != 0:
         raise Error("bad string")
-    var tmp = List[Byte]()
-    for i in range(n):
-        tmp.append(data[pos + 4 + i])
-    return String(from_utf8=Span(tmp))
+    if n == 0:
+        return String()
+    # Length and the trailing NUL are already checked. Skip the UTF-8 scan.
+    return String(unsafe_from_utf8=data[pos + 4 : pos + 4 + n])
 
 
 def vector_len[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> Int:

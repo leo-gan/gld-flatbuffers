@@ -1,4 +1,5 @@
 from std.collections import Dict, List, Span
+from std.memory import unsafe_memcpy
 
 
 struct Builder:
@@ -15,7 +16,9 @@ struct Builder:
     var nested: Bool
     var object_end: Int
     var vtable: List[Int]
+    var vtable_len: Int
     var vt_offsets: List[Int]
+    var vt_used: Int
     var vector_elems: Int
     var force_defaults: Bool
     var finished: Bool
@@ -34,7 +37,9 @@ struct Builder:
         self.nested = False
         self.object_end = 0
         self.vtable = List[Int]()
+        self.vtable_len = 0
         self.vt_offsets = List[Int]()
+        self.vt_used = 0
         self.vector_elems = 0
         self.force_defaults = False
         self.finished = False
@@ -42,17 +47,18 @@ struct Builder:
         self.share_strings = False
 
     def clear(mut self):
-        """Drop the previous message and keep the allocated block."""
+        """Drop the previous message and keep the allocated block and scratch lists."""
         self.head = len(self.buf)
         self.minalign = 1
         self.nested = False
         self.object_end = 0
-        self.vtable = List[Int]()
-        self.vt_offsets = List[Int]()
+        self.vtable_len = 0
+        self.vt_used = 0
         self.vector_elems = 0
         self.force_defaults = False
         self.finished = False
-        self.shared = Dict[String, Int]()
+        if self.share_strings:
+            self.shared = Dict[String, Int]()
 
     def offset(self) -> Int:
         return len(self.buf) - self.head
@@ -60,9 +66,14 @@ struct Builder:
     def finished_list(self) raises -> List[Byte]:
         if not self.finished:
             raise Error("builder is not finished")
-        var out = List[Byte](capacity=len(self.buf) - self.head)
-        for i in range(self.head, len(self.buf)):
-            out.append(self.buf[i])
+        var n = len(self.buf) - self.head
+        var out = List[Byte](unsafe_uninit_length=n)
+        if n > 0:
+            unsafe_memcpy(
+                dest=out.unsafe_ptr(),
+                src=self.buf.unsafe_ptr().unsafe_offset(self.head),
+                count=n,
+            )
         return out^
 
     def set_force_defaults(mut self, enabled: Bool):
@@ -78,12 +89,14 @@ struct Builder:
             new_len = 1
         if new_len > 2147483647:
             raise Error("flatbuffers: buffer exceeds 2GiB")
-        var fresh = List[Byte](capacity=new_len)
+        var fresh = List[Byte](unsafe_uninit_length=new_len)
         var prefix = new_len - old_len
-        for _ in range(prefix):
-            fresh.append(Byte(0))
-        for i in range(old_len):
-            fresh.append(self.buf[i])
+        if old_len > 0:
+            unsafe_memcpy(
+                dest=fresh.unsafe_ptr().unsafe_offset(prefix),
+                src=self.buf.unsafe_ptr(),
+                count=old_len,
+            )
         self.head += prefix
         self.buf = fresh^
 
@@ -105,21 +118,15 @@ struct Builder:
 
     def place_u16(mut self, v: UInt16):
         self.head -= 2
-        self.buf[self.head] = Byte(UInt8(v & 0xFF))
-        self.buf[self.head + 1] = Byte(UInt8((v >> UInt16(8)) & 0xFF))
+        self.buf.unsafe_ptr().unsafe_offset(self.head).unsafe_bitcast[UInt16]()[] = v
 
     def place_u32(mut self, v: UInt32):
         self.head -= 4
-        self.buf[self.head] = Byte(UInt8(v & 0xFF))
-        self.buf[self.head + 1] = Byte(UInt8((v >> UInt32(8)) & 0xFF))
-        self.buf[self.head + 2] = Byte(UInt8((v >> UInt32(16)) & 0xFF))
-        self.buf[self.head + 3] = Byte(UInt8((v >> UInt32(24)) & 0xFF))
+        self.buf.unsafe_ptr().unsafe_offset(self.head).unsafe_bitcast[UInt32]()[] = v
 
     def place_u64(mut self, v: UInt64):
         self.head -= 8
-        for i in range(8):
-            var shift = UInt64(i) * 8
-            self.buf[self.head + i] = Byte(UInt8((v >> shift) & 0xFF))
+        self.buf.unsafe_ptr().unsafe_offset(self.head).unsafe_bitcast[UInt64]()[] = v
 
     def place_i8(mut self, v: Int8):
         self.place_u8(UInt8(v))
@@ -140,14 +147,10 @@ struct Builder:
         self.place_u64(UInt64(v.to_bits()))
 
     def write_i32_at(mut self, index: Int, v: Int32):
-        var bits = UInt32(v)
-        self.buf[index] = Byte(UInt8(bits & 0xFF))
-        self.buf[index + 1] = Byte(UInt8((bits >> UInt32(8)) & 0xFF))
-        self.buf[index + 2] = Byte(UInt8((bits >> UInt32(16)) & 0xFF))
-        self.buf[index + 3] = Byte(UInt8((bits >> UInt32(24)) & 0xFF))
+        self.buf.unsafe_ptr().unsafe_offset(index).unsafe_bitcast[UInt32]()[] = UInt32(v)
 
     def u16_at(self, index: Int) -> UInt16:
-        return UInt16(self.buf[index]) | (UInt16(self.buf[index + 1]) << UInt16(8))
+        return self.buf.unsafe_ptr().unsafe_offset(index).unsafe_bitcast[UInt16]()[]
 
     def prepend_u8(mut self, v: UInt8) raises:
         self.prep(1, 0)
@@ -195,6 +198,42 @@ struct Builder:
             b = 1
         self.prepend_u8(b)
 
+    def push_u8(mut self, v: UInt8):
+        self.place_u8(v)
+
+    def push_u16(mut self, v: UInt16):
+        self.place_u16(v)
+
+    def push_u32(mut self, v: UInt32):
+        self.place_u32(v)
+
+    def push_u64(mut self, v: UInt64):
+        self.place_u64(v)
+
+    def push_i8(mut self, v: Int8):
+        self.place_i8(v)
+
+    def push_i16(mut self, v: Int16):
+        self.place_i16(v)
+
+    def push_i32(mut self, v: Int32):
+        self.place_i32(v)
+
+    def push_i64(mut self, v: Int64):
+        self.place_i64(v)
+
+    def push_f32(mut self, v: Float32):
+        self.place_f32(v)
+
+    def push_f64(mut self, v: Float64):
+        self.place_f64(v)
+
+    def push_bool(mut self, v: Bool):
+        var b: UInt8 = 0
+        if v:
+            b = 1
+        self.place_u8(b)
+
     def prepend_uoffset_relative(mut self, off: Int) raises:
         self.prep(4, 0)
         if off > self.offset():
@@ -223,9 +262,13 @@ struct Builder:
 
     def start_object(mut self, numfields: Int) raises:
         self.assert_not_nested()
-        self.vtable = List[Int]()
-        for _ in range(numfields):
+        while len(self.vtable) < numfields:
             self.vtable.append(0)
+        var i = 0
+        while i < numfields:
+            self.vtable[i] = 0
+            i += 1
+        self.vtable_len = numfields
         self.object_end = self.offset()
         self.nested = True
 
@@ -234,82 +277,76 @@ struct Builder:
         self.nested = False
         return self.write_vtable()
 
-    def _vtable_matches(self, stored_off: Int, expect: List[Int]) -> Bool:
+    def _push_vt(mut self, off: Int):
+        if self.vt_used < len(self.vt_offsets):
+            self.vt_offsets[self.vt_used] = off
+        else:
+            self.vt_offsets.append(off)
+        self.vt_used += 1
+
+    def _vt_equal(self, stored_off: Int, object_offset: Int, nfields: Int) -> Bool:
         var pos = len(self.buf) - stored_off
         if pos < 0 or pos + 4 > len(self.buf):
             return False
         var vbytes = Int(self.u16_at(pos))
-        var nfields = vbytes // 2 - 2
-        if nfields != len(expect):
+        if vbytes // 2 - 2 != nfields:
             return False
-        for i in range(nfields):
+        var i = 0
+        while i < nfields:
             var at = pos + 4 + 2 * i
             if at + 2 > len(self.buf):
                 return False
-            if Int(self.u16_at(at)) != expect[i]:
+            var elem = self.vtable[i]
+            var exp = 0
+            if elem != 0:
+                exp = object_offset - elem
+            if Int(self.u16_at(at)) != exp:
                 return False
+            i += 1
         return True
 
     def write_vtable(mut self) raises -> Int:
         self.prepend_soffset_relative(0)
         var object_offset = self.offset()
-        var key = List[Int]()
-        var trim = True
-        var i = len(self.vtable) - 1
+        var n = self.vtable_len
+        var trailing = 0
+        var i = n - 1
         while i >= 0:
-            var elem = self.vtable[i]
+            if self.vtable[i] != 0:
+                break
+            trailing += 1
             i -= 1
-            if elem == 0:
-                if trim:
-                    continue
-                key.append(0)
-            else:
-                key.append(object_offset - elem)
-                trim = False
-        var expect = List[Int]()
-        var k = len(key) - 1
-        while k >= 0:
-            expect.append(key[k])
-            k -= 1
-
+        var nfields = n - trailing
         var found = -1
-        for vi in range(len(self.vt_offsets)):
-            if self._vtable_matches(self.vt_offsets[vi], expect):
+        var vi = 0
+        while vi < self.vt_used:
+            if self._vt_equal(self.vt_offsets[vi], object_offset, nfields):
                 found = self.vt_offsets[vi]
                 break
-
+            vi += 1
         if found < 0:
-            trim = True
-            var trailing = 0
-            i = len(self.vtable) - 1
+            i = nfields - 1
             while i >= 0:
-                var off = 0
                 var elem = self.vtable[i]
-                i -= 1
-                if elem == 0:
-                    if trim:
-                        trailing += 1
-                        continue
-                else:
+                var off = 0
+                if elem != 0:
                     off = object_offset - elem
-                    trim = False
                 self.place_u16(UInt16(off))
+                i -= 1
             var object_size = object_offset - self.object_end
             self.place_u16(UInt16(object_size))
-            var v_bytes = (len(self.vtable) - trailing + 2) * 2
+            var v_bytes = (nfields + 2) * 2
             self.place_u16(UInt16(v_bytes))
             var object_start = len(self.buf) - object_offset
             var soff = self.offset() - object_offset
             self.write_i32_at(object_start, Int32(soff))
             found = self.offset()
-            self.vt_offsets.append(found)
+            self._push_vt(found)
         else:
             var object_start = len(self.buf) - object_offset
             self.head = object_start
             var soff = found - object_offset
             self.write_i32_at(self.head, Int32(soff))
-
-        self.vtable = List[Int]()
         return object_offset
 
     def add_bool(mut self, slotnum: Int, value: Bool, default: Bool) raises:
@@ -408,8 +445,12 @@ struct Builder:
         self.prep(4, n + 1)
         self.place_u8(0)
         self.head -= n
-        for i in range(n):
-            self.buf[self.head + i] = raw[i]
+        if n > 0:
+            unsafe_memcpy(
+                dest=self.buf.unsafe_ptr().unsafe_offset(self.head),
+                src=raw.unsafe_ptr(),
+                count=n,
+            )
         self.vector_elems = n
         return self.end_vector()
 
@@ -419,8 +460,12 @@ struct Builder:
         var n = len(raw)
         self.prep(4, n)
         self.head -= n
-        for i in range(n):
-            self.buf[self.head + i] = raw[i]
+        if n > 0:
+            unsafe_memcpy(
+                dest=self.buf.unsafe_ptr().unsafe_offset(self.head),
+                src=raw.unsafe_ptr(),
+                count=n,
+            )
         self.vector_elems = n
         return self.end_vector()
 
@@ -429,7 +474,11 @@ struct Builder:
         _ = self.start_vector(4, n, 4)
         var i = n - 1
         while i >= 0:
-            self.prepend_uoffset_relative(offsets[i])
+            var off = offsets[i]
+            if off > self.offset():
+                raise Error("offset arithmetic")
+            var off2 = self.offset() - off + 4
+            self.place_u32(UInt32(off2))
             i -= 1
         return self.end_vector()
 

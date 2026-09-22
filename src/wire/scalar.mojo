@@ -1,6 +1,21 @@
 from std.collections import Span
 
 
+def load_u16[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) -> UInt16:
+    """Little-endian load. The caller has checked the range. x86-64 allows the unaligned address."""
+    return data.unsafe_ptr().unsafe_offset(pos).unsafe_bitcast[UInt16]()[]
+
+
+def load_u32[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) -> UInt32:
+    """Little-endian load. The caller has checked the range. x86-64 allows the unaligned address."""
+    return data.unsafe_ptr().unsafe_offset(pos).unsafe_bitcast[UInt32]()[]
+
+
+def load_u64[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) -> UInt64:
+    """Little-endian load. The caller has checked the range. x86-64 allows the unaligned address."""
+    return data.unsafe_ptr().unsafe_offset(pos).unsafe_bitcast[UInt64]()[]
+
+
 def read_u8[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> UInt8:
     if pos < 0 or pos >= len(data):
         raise Error("truncated")
@@ -10,31 +25,19 @@ def read_u8[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> UIn
 def read_u16[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> UInt16:
     if pos < 0 or pos + 2 > len(data):
         raise Error("truncated")
-    return UInt16(data[pos]) | (UInt16(data[pos + 1]) << UInt16(8))
+    return load_u16(data, pos)
 
 
 def read_u32[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> UInt32:
     if pos < 0 or pos + 4 > len(data):
         raise Error("truncated")
-    var v = UInt32(data[pos])
-    v |= UInt32(data[pos + 1]) << UInt32(8)
-    v |= UInt32(data[pos + 2]) << UInt32(16)
-    v |= UInt32(data[pos + 3]) << UInt32(24)
-    return v
+    return load_u32(data, pos)
 
 
 def read_u64[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> UInt64:
     if pos < 0 or pos + 8 > len(data):
         raise Error("truncated")
-    var v = UInt64(data[pos])
-    v |= UInt64(data[pos + 1]) << UInt64(8)
-    v |= UInt64(data[pos + 2]) << UInt64(16)
-    v |= UInt64(data[pos + 3]) << UInt64(24)
-    v |= UInt64(data[pos + 4]) << UInt64(32)
-    v |= UInt64(data[pos + 5]) << UInt64(40)
-    v |= UInt64(data[pos + 6]) << UInt64(48)
-    v |= UInt64(data[pos + 7]) << UInt64(56)
-    return v
+    return load_u64(data, pos)
 
 
 def read_i8[origin: ImmOrigin](data: Span[Byte, origin], pos: Int) raises -> Int8:
