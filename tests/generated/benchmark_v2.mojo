@@ -887,7 +887,7 @@ struct Telemetry:
             _ = b.start_vector(8, len(self.values), 8)
             var i = len(self.values) - 1
             while i >= 0:
-                b.prepend_f64(self.values[i])
+                b.push_f64(self.values[i])
                 i -= 1
             off_values = b.end_vector()
         b.start_object(4)

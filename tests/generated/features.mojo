@@ -247,7 +247,7 @@ struct Holder:
             _ = b.start_vector(4, len(self.scores), 4)
             var i = len(self.scores) - 1
             while i >= 0:
-                b.prepend_f32(self.scores[i])
+                b.push_f32(self.scores[i])
                 i -= 1
             off_scores = b.end_vector()
         var off_tags = 0
@@ -261,7 +261,7 @@ struct Holder:
         b.add_offset(8, off_scores)
         b.add_u32(7, self.flags, UInt32(0))
         if self.maybe:
-            b.prepend_i32(self.maybe.value())
+            b.push_i32(self.maybe.value())
             b.slot(6)
         b.add_offset(5, off_item)
         b.add_u8(4, self.item_type, UInt8(0))

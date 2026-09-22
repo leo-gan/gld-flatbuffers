@@ -41,15 +41,22 @@ the next value at a lower address. A `uoffset` is then a positive distance
 from the field to a child that was written earlier.
 
 The block doubles when `head` runs out of room. The live suffix is copied to
-the end of the new block, so every offset measured from the end stays valid.
-Padding bytes are written as zeros. `clear` sets `head` back to the end and
-drops the vtable list. It does not free the block. The next message overwrites
-the suffix it uses. Bytes below the new `head` are not part of the output, so
-`clear` does not have to zero them.
+the end of the new block with one `memcpy`, so every offset measured from the
+end stays valid. Padding bytes are written as zeros. `clear` sets `head` back
+to the end and resets the scratch counts. It keeps the byte block and the
+vtable lists. The next message overwrites the suffix it uses. Bytes below the
+new `head` are not part of the output, so `clear` does not have to zero them.
 
-`finish` copies the live suffix into a `List[Byte]` the caller owns. The copy
-is one pass. Reusing the builder still avoids allocating the scratch block on
-every message.
+`finish` copies the live suffix into a `List[Byte]` the caller owns, again
+with one `memcpy`. Strings and byte vectors are copied the same way. Scalars
+are stored and loaded as one little-endian machine word, which matches the
+wire on x86-64. A scalar vector is reserved once by `start_vector`; each
+element is then stored with `push_*` and does not recompute alignment. A
+string read checks the length and the trailing NUL, then copies the bytes
+with `String(unsafe_from_utf8=)` and does not scan them for UTF-8 again.
+`TableRef` reads the vtable header once per table. Reusing the builder avoids
+allocating the scratch block, the vtable list, or the string map on every
+message. The string map is rebuilt only when string sharing is on.
 
 Default fields are omitted. `add_i32` writes a field only when the value
 differs from the schema default, unless `set_force_defaults` is on. That is
