@@ -22,8 +22,13 @@ encode and decode techniques, and the test data.
 Published package (linux-64) on [prefix.dev/leo-gan/leo-gan](https://prefix.dev/leo-gan/leo-gan):
 
 ```bash
-pixi add --channel https://prefix.dev/leo-gan/leo-gan mojo-flatbuffers
+pixi workspace channel add https://prefix.dev/leo-gan/leo-gan
+pixi workspace channel add https://conda.modular.com/max
+pixi add mojo-flatbuffers
 ```
+
+Pixi 0.79 stores channels on the workspace. The prefix.dev channel supplies
+`mojo-flatbuffers`. `mojo-compiler` 1.0.0 comes from the Modular channel.
 
 ## Develop
 

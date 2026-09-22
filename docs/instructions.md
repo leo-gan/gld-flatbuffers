@@ -21,13 +21,16 @@ in a local `.env` (never commit that file) and run `scripts/ci-setup.sh`.
 After a conda install from prefix.dev:
 
 ```bash
-pixi add --channel https://prefix.dev/leo-gan/leo-gan mojo-flatbuffers
+pixi workspace channel add https://prefix.dev/leo-gan/leo-gan
+pixi workspace channel add https://conda.modular.com/max
+pixi add mojo-flatbuffers
 ```
 
-That installs `flatbuffers.mojoc` (plus `wire`, `flex`, and `schema`) and
-`gld-flatc-mojo`. The package requires `mojo-compiler` 1.0.0. Those
-`.mojoc` files are bytecode from that compiler, and Mojo 1.1.0 refuses to
-load them.
+Pixi 0.79 stores channels on the workspace. The prefix.dev channel supplies
+`mojo-flatbuffers`. `mojo-compiler` 1.0.0 comes from the Modular channel.
+That install puts `flatbuffers.mojoc` (plus `wire`, `flex`, and `schema`)
+and `gld-flatc-mojo` on the environment. Those `.mojoc` files are bytecode
+from Mojo 1.0.0, and Mojo 1.1.0 refuses to load them.
 
 ## Generate Mojo from a schema
 
