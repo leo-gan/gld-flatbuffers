@@ -25,7 +25,9 @@ pixi add --channel https://prefix.dev/leo-gan/leo-gan mojo-flatbuffers
 ```
 
 That installs `flatbuffers.mojoc` (plus `wire`, `flex`, and `schema`) and
-`gld-flatc-mojo`.
+`gld-flatc-mojo`. The package requires `mojo-compiler` 1.0.0. Those
+`.mojoc` files are bytecode from that compiler, and Mojo 1.1.0 refuses to
+load them.
 
 ## Generate Mojo from a schema
 
