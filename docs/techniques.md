@@ -133,3 +133,11 @@ The reader understands the widths, typed vectors, fixed vectors of length 2,
 | SIMD string copies | Suite strings are short. The copy is already a tight byte loop into the builder block. |
 | A reflective packer | Walking a field table at runtime is what the generated code avoids. |
 | A FlexBuffers view type | Every access would still branch on the type byte. The owned tree matches how the tests check values. |
+
+## The conda package pins one compiler
+
+`.mojoc` files match the compiler that wrote them. Build, host, and run all
+require `mojo-compiler` 1.0.0. The default `pin_compatible` range is
+`>=1.0.0,<2.0a0`. That range lets a solver install 1.1.0, and 1.1.0 refuses
+to load 1.0.0 bytecode. The run requirement therefore uses an upper bound of
+`x.x.x`, which keeps the package on 1.0.0.
