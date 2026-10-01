@@ -6,7 +6,7 @@ structs, unions, and FlexBuffers.
 [Techniques](techniques.md) explains how the builder and the code generator
 are implemented.
 
-## Install Mojo 1.0.0
+## Install Mojo 1.1.0
 
 ```bash
 git clone https://github.com/leo-gan/gld-flatbuffers.git
@@ -27,10 +27,10 @@ pixi add mojo-flatbuffers
 ```
 
 Pixi 0.79 stores channels on the workspace. The prefix.dev channel supplies
-`mojo-flatbuffers`. `mojo-compiler` 1.0.0 comes from the Modular channel.
+`mojo-flatbuffers`. `mojo-compiler` 1.1.0 comes from the Modular channel.
 That install puts `flatbuffers.mojoc` (plus `wire`, `flex`, and `schema`)
-and `gld-flatc-mojo` on the environment. Those `.mojoc` files are bytecode
-from Mojo 1.0.0, and Mojo 1.1.0 refuses to load them.
+and `gld-flatc-mojo` on the environment. The `.mojoc` files are bytecode
+from Mojo 1.1.0, so the run dependency stays on that compiler.
 
 ## Generate Mojo from a schema
 

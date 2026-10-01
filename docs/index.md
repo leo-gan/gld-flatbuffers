@@ -19,7 +19,7 @@ Mojo. They do not wrap the C++ FlatBuffers library or flatcc.
 
     ---
 
-    Install Mojo 1.0.0 with pixi, write a `.fbs` schema, generate Mojo, run the
+    Install Mojo 1.1.0 with pixi, write a `.fbs` schema, generate Mojo, run the
     tests, and publish this site.
 
     [:octicons-arrow-right-24: Open Instructions](instructions.md)

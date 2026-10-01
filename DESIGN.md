@@ -32,8 +32,8 @@ benchmark repository. The v2 `.fbs` file is copied into `testdata/`.
 4. **Core feature set.** Scalars, strings, vectors, tables, structs, enums, unions, defaults, optional scalars, file identifiers, size prefixes, and a verifier. Out of scope: 64-bit offsets, nested buffers, sorted-key vectors, and gRPC.
 5. **Backward builder with a reused block.** Offsets stay positive. `clear` keeps the allocation. Vtables are deduplicated by a linear scan. String sharing is off unless requested.
 6. **Generated code is straight-line.** The hot path does not walk a schema. That is the same split flatcc uses.
-7. **Mojo 1.0 only.** Public functions are `def`. A negative soffset is sign-extended from a named `Int32`, because `Int(read_i32(...))` in one expression can zero-extend.
-8. **License and package.** MIT, copyright Leonid Ganeline. Conda package `mojo-flatbuffers`. Module `flatbuffers`. Mojo pin `1.0.0`.
+7. **Mojo 1.1 only.** Public functions are `def`. A negative soffset is sign-extended from a named `Int32`, because `Int(read_i32(...))` in one expression can zero-extend.
+8. **License and package.** MIT, copyright Leonid Ganeline. Conda package `mojo-flatbuffers`. Module `flatbuffers`. Mojo pin `1.1.0`.
 
 ## Interop
 

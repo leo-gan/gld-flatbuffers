@@ -28,7 +28,7 @@ pixi add mojo-flatbuffers
 ```
 
 Pixi 0.79 stores channels on the workspace. The prefix.dev channel supplies
-`mojo-flatbuffers`. `mojo-compiler` 1.0.0 comes from the Modular channel.
+`mojo-flatbuffers`. `mojo-compiler` 1.1.0 comes from the Modular channel.
 
 ## Develop
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install pixi and Mojo 1.0.0 for this repo.
+# Install pixi and Mojo 1.1.0 for this repo.
 # conda.modular.com may require a prefix.dev token. Put PREFIX_API_KEY in a
 # local .env file. Do not commit that file.
 set -euo pipefail
@@ -19,7 +19,7 @@ if ! command -v pixi >/dev/null 2>&1; then
 fi
 
 echo "pixi: $(pixi --version)"
-echo "pin: mojo == 1.0.0"
+echo "pin: mojo == 1.1.0"
 
 if ! pixi install; then
   echo "pixi install failed." >&2
