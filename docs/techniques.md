@@ -143,8 +143,6 @@ The reader understands the widths, typed vectors, fixed vectors of length 2,
 
 ## The conda package pins one compiler
 
-`.mojoc` files match the compiler that wrote them. Build, host, and run all
-require `mojo-compiler` 1.0.0. The default `pin_compatible` range is
-`>=1.0.0,<2.0a0`. That range lets a solver install 1.1.0, and 1.1.0 refuses
-to load 1.0.0 bytecode. The run requirement therefore uses an upper bound of
-`x.x.x`, which keeps the package on 1.0.0.
+`.mojoc` files match the compiler that wrote them. Build and host require
+`mojo-compiler` 1.1.0. The run requirement is `pin_compatible` with that
+compiler, so a later 1.1.x can load the bytecode and a 1.0 compiler cannot.

@@ -21,13 +21,11 @@ build:
 
 requirements:
   build:
-    - mojo-compiler ==1.0.0
+    - mojo-compiler ==1.1.0
   host:
-    - mojo-compiler ==1.0.0
+    - mojo-compiler ==1.1.0
   run:
-    # Default pin_compatible is >=1.0.0,<2.0a0. Mojo 1.1.0 then wins the
-    # test solve and refuses these 1.0.0 .mojoc files.
-    - ${{ pin_compatible('mojo-compiler', upper_bound='x.x.x') }}
+    - ${{ pin_compatible('mojo-compiler') }}
 
 tests:
   - script:
