@@ -1,5 +1,7 @@
 # mojo-flatbuffers
 
+[Serialization](https://leo-gan.github.io/serialization/) is the hub for the theory, the history, and the benchmarks.
+
 A from-scratch [FlatBuffers](https://flatbuffers.dev/) implementation for
 [Mojo](https://www.modular.com/mojo). The runtime, the schema front ends, and
 the code generator are written in Mojo. They do not wrap, link, or vendor the
